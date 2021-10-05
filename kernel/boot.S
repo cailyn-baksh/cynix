@@ -4,7 +4,7 @@
 
 .org 0x80000
 
-.extern MMIO_BASE
+.globl MMIO_BASE
 
 // halt the processor
 halt:
@@ -28,13 +28,17 @@ _start:
     cbnz w6, 3b                 // if w6 != 0, jump backward to local label 3
 
 4:
+    // load address of MMIO_BASE into x10
+    ldr x10, =MMIO_BASE
+
     // detect board type
     mrs x9, midr_el1            // read main id register into x9
-    and x9, x9, #0xFFF0         // turn off all bits except 4:15
+    lsr x9, x9, #4              // turn off all bits except 4:15
+    and x9, x9, #0xFFF
     // compare and jump to corresponding branch
-    cmp x9, #0xD030             // if x9 == 0xD030 jump forwards to 5
+    cmp x9, #0xD03              // if x9 == 0xD030 jump forwards to 5
     beq 5f
-    cmp x9, #0xD080             // if x9 == 0xD080 jump forwards to 6
+    cmp x9, #0xD08              // if x9 == 0xD080 jump forwards to 6
     beq 6f
     // no match, halt
     bl halt
@@ -42,13 +46,13 @@ _start:
 5:
     // raspberry pi 3
     mov x9, #0x3F000000
-    str x9, =MMIO_BASE
+    str x9, [x10]
     b 7f
 
 6:
     // raspberry pi 4
     mov x9, #0x3F000000
-    str x9, =MMIO_BASE
+    str x9, [x10]
 
 7:
     // start kernel

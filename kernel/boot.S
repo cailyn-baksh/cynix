@@ -1,6 +1,19 @@
 .section ".text.boot"
 .globl _start
 
+.org 0xD8
+spin_cpu0:
+    .quad 0
+.org 0xE0
+spin_cpu1:
+    .quad 0
+.org 0xE8
+spin_cpu2:
+    .quad 0
+.org 0xF0
+spin_cpu3:
+    .quad 0
+
 .org 0x80000
 
 .globl MMIO_BASE
@@ -10,8 +23,26 @@ halt:
     wfe
     bl halt
 
+// spin until function address is written to the corresponding address for this cpu
+spin:
+    wfe
+    ldr x4, [x5, x6, lsl #3]
+    cbz x4, spin
+    mov x0, #0
+    b boot_kernel
+
+
 _start:
     // firmware *does not* ensure that this will only run on cpu0 >:(
+    // spin if this isnt cpu0
+    mrs x9, mpidr_el1
+    and x9, x9, #3
+    cbz x9, 2f
+
+    adr x5, spin_cpu0
+    b spin
+
+2:
     // set stack pointer to address of _start
     ldr x5, =_start
     mov sp, x5
@@ -39,7 +70,7 @@ _start:
     ldr x10, =MMIO_BASE
 
     // detect board type
-    mrs x9, midr_el1            // read main id register into x9
+    mrs x9, midr_el1
     lsr x9, x9, #4              // turn off all bits except 4:15
     and x9, x9, #0xFFF
     // compare and jump to corresponding branch
@@ -60,7 +91,11 @@ _start:
     mov x9, #0xFE000000
 
 7:
-    str x9, [x10]               // set MMIO_BASE to proper value
-    // start kernel
-    bl kernel_main              // jump to kernel_main
-    bl halt                     // halt if kernel returns (it shouldnt)
+    str x9, [x10]           // write address to MMIO_BASE
+    ldr x4, =kernel_main
+
+boot_kernel:
+    mov x1, #0
+    mov x2, #0
+    mov x3, #0
+    br x4

@@ -1,4 +1,3 @@
-/* code modified from https://wiki.osdev.org/Raspberry_Pi_Bare_Bones#Pi_3.2C_4 */
 .section ".text.boot"
 .globl _start
 
@@ -12,20 +11,28 @@ halt:
     bl halt
 
 _start:
-    // firmware ensures that this will only run on cpu0
+    // firmware *does not* ensure that this will only run on cpu0 >:(
     // set stack pointer to address of _start
-    ldr x5, =_start             // load address of _start into x5
-    mov sp, x5                  // move x5 into sp
+    ldr x5, =_start
+    mov sp, x5
 
     // zero bss for crt
-    ldr x5, =__bss_start        // load address of __bss_start into x5
-    ldr x6, =__bss_size         // load address of __bss_size into x6
-
+    ldr x5, =__bss_start
+    ldr x6, =__bss_size
 3:
-    cbz w6, 4f                  // if w6 == 0, jump forward to local label 4
-    str xzr, [x5], #8           // store 64-bit 0 (xzr) into address at x5, then add 8 to x5
-    sub w6, w6, #1              // w6 = w6 - 1
-    cbnz w6, 3b                 // if w6 != 0, jump backward to local label 3
+    cbz w6, 4f
+    str xzr, [x5], #8
+    sub w6, w6, #1
+    cbnz w6, 3b
+
+    // she/her
+    // they/them
+    // he/him
+    // it/its
+    // xe/xyr
+
+    // pronouns in bios
+    // ~~yes i know its technically not a bios but shhh~~
 
 4:
     // load address of MMIO_BASE into x10
@@ -36,9 +43,9 @@ _start:
     lsr x9, x9, #4              // turn off all bits except 4:15
     and x9, x9, #0xFFF
     // compare and jump to corresponding branch
-    cmp x9, #0xD03              // if x9 == 0xD030 jump forwards to 5
+    cmp x9, #0xD03
     beq 5f
-    cmp x9, #0xD08              // if x9 == 0xD080 jump forwards to 6
+    cmp x9, #0xD08
     beq 6f
     // no match, halt
     bl halt
@@ -46,15 +53,14 @@ _start:
 5:
     // raspberry pi 3
     mov x9, #0x3F000000
-    str x9, [x10]
     b 7f
 
 6:
     // raspberry pi 4
-    mov x9, #0x3F000000
-    str x9, [x10]
+    mov x9, #0xFE000000
 
 7:
+    str x9, [x10]               // set MMIO_BASE to proper value
     // start kernel
     bl kernel_main              // jump to kernel_main
     bl halt                     // halt if kernel returns (it shouldnt)

@@ -18,11 +18,6 @@ spin_cpu3:
 
 .globl MMIO_BASE
 
-// halt the processor
-halt:
-    wfe
-    bl halt
-
 // spin until function address is written to the corresponding address for this cpu
 spin:
     wfe
@@ -35,9 +30,9 @@ spin:
 _start:
     // firmware *does not* ensure that this will only run on cpu0 >:(
     // spin if this isnt cpu0
-    mrs x9, mpidr_el1
-    and x9, x9, #3
-    cbz x9, 2f
+    mrs x6, mpidr_el1
+    and x6, x6, #3
+    cbz x6, 2f
 
     adr x5, spin_cpu0
     b spin
@@ -56,15 +51,6 @@ _start:
     sub w6, w6, #1
     cbnz w6, 3b
 
-    // she/her
-    // they/them
-    // he/him
-    // it/its
-    // xe/xyr
-
-    // pronouns in bios
-    // ~~yes i know its technically not a bios but shhh~~
-
 4:
     // load address of MMIO_BASE into x10
     ldr x10, =MMIO_BASE
@@ -79,7 +65,8 @@ _start:
     cmp x9, #0xD08
     beq 6f
     // no match, halt
-    bl halt
+    mov x6, #0
+    b spin
 
 5:
     // raspberry pi 3

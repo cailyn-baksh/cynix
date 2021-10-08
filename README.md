@@ -13,7 +13,7 @@ When you first clone this repo, the `bin/` and `sysroot/` directory structures w
 To test this code on qemu, install `qemu-system-aarch64`, then run the following command
 
 ```
-qemu-system-aarch64 -M raspi3b -serial stdio -kernel sysroot/kernel8.img
+qemu-system-aarch64 -M raspi3b -serial null -serial stdio -kernel bin/cynix.elf
 ```
 
 ## Acknowledgements

@@ -150,15 +150,18 @@ uart1_putc:
 
 @ void kprintf(const char *format, ...);
 kprintf:
-	push {r1-r3}  @ Push extra arguments onto stack
-	mov r1,sp  @ remember where varargs begin
+	@ r0 is format string
+	@ r1-r3 are format arguments
+	@ any other format arguments are pushed onto the stack in reverse order
+	push {r1-r3}  @ Put all format arguments on the stack
+	mov r1,sp  @ remember where varargs begins on the stack
 	push {r4-r8, fp, lr}  @ Save registers
 
 	mov fp,sp  @ move frame pointer to start of locals
 	sub sp,sp,#4  @ Move stack pointer to end of locals
 
 	@ Declare locals
-	@ fp + 4 = length
+	@   [fp + 4] = length
 
 	@ r0-r5 are scratch registers  (i couldve kept it to r0-r3 if it weren't for decimal)
 	mov r6,r0  @ r6 = pointer to format string
@@ -166,8 +169,10 @@ kprintf:
 	mov r8,#0  @ r8 = number of chars printed
 
 1:
+	@ length = sizeof(int)
 	mov r2,#__SIZEOF_INT__
 	str r2,[fp,#4]
+
 	ldrb r0,[r6],#1  @ read byte and increment ptr
 
 	cmp r0,#0  @ Return on null terminator
@@ -176,7 +181,7 @@ kprintf:
 		beq 2f
 
 	@ Print the char normally
-	bl _uart1_printf_putc
+	bl _kprintf_putc
 	b 1b
 
 2:  @ handle format specifiers
@@ -186,45 +191,62 @@ kprintf:
 		beq 0f
 
 	@ Length specifiers
+	
 	cmp r0,#'h'  @ half word
 	bne 3f
 		ldrb r0,[r6],#1  @ read next char
 		cmp r0,#0  @ return on null terminator
 			beq 0f
 
-		cmp r0,#'h'  @ half half word
+		cmp r0,#'h'  @ half half word; 1 byte
 			moveq r1,#1
 		@ else only half word
 			movne r1,#__SIZEOF_SHORT__
-		str r1,[fp,#4]
-		beq 2b  @ move to the next characterr		
+			sub r6,r6,#1  @ unread last char
+		str r1,[fp,#4]  @ length = r1
+		beq 2b  @ move to next char
+3:
+	cmp r0,#'l'  @ long
+	bne 4f
+		ldrb r0,[r6],#1  @ read next charr
+		cmp r0,#0  @ return on null terminator
+			beq 0f
 
-3:	@ Type specifiers
+		cmp r0,#'l'  @ long long
+			moveq r1,#__SIZEOF_LONG_LONG__
+		@ else only long
+			movne r1,#__SIZEOF_LONG__
+			sub r6,r6,#1  @ unread last char
+		str r1,[fp,#4]  @ length = r1
+		beq 2b
+4:
+
+5:	@ switch type specifiers
 	cmp r0,#'d'  @ Signed integer
 	cmpne r0,#'i'
-		beq _uart1_printf_fmtdec
+		beq _kprintf_fmtdec
 	cmp r0,#'u'  @ Unsigned integer
-		beq _uart1_printf_fmtudec
+		beq _kprintf_fmtudec
 	cmp r0,#'x'  @ Hex uint (lower)
-		beq _uart1_printf_fmthexl
+		beq _kprintf_fmthexl
 	cmp r0,#'X'  @ Hex uint (upper)
-		beq _uart1_printf_fmthexu
+		beq _kprintf_fmthexu
 	cmp r0,#'o'  @ Octal uint
-		beq _uart1_printf_fmtoct
+		beq _kprintf_fmtoct
 	cmp r0,#'b'  @ Binary uint
-		beq _uart1_printf_fmtbin
+		beq _kprintf_fmtbin
 	cmp r0,#'s'  @ String
-		beq _uart1_printf_fmtstr
+		beq _kprintf_fmtstr
 	cmp r0,#'c'  @ Character
-		beq _uart1_printf_fmtchr
+		beq _kprintf_fmtchr
 	cmp r0,#'p'  @ Pointer
-		beq _uart1_printf_fmtptr
+		beq _kprintf_fmtptr
 	cmp r0,#'n'  @ Store number of chars printed
-		beq _uart1_printf_fmtsto
+		beq _kprintf_fmtsto
 
 	@ no cases matched; handle char normally and stop processing
 	@ %% case falls through to here
-	bl _uart1_printf_putc
+	bl _kprintf_putc
 	b 1b
 0:
 	add sp,sp,#4  @ move stack pointer to beginning of locals
@@ -233,7 +255,7 @@ kprintf:
 	bx lr
 
 @ %s
-_uart1_printf_fmtstr:
+_kprintf_fmtstr:
 	ldr r1,[r7],#4  @ Load address of string and increment ptr to next arg
 
 50:
@@ -242,35 +264,36 @@ _uart1_printf_fmtstr:
 	cmp r0,#0
 	beq 1b  @ Stop at null terminator
 	
-	bl _uart1_printf_putc  @ print char then loop
+	bl _kprintf_putc  @ print char then loop
 	b 50b
 
 @ %c
-_uart1_printf_fmtchr:
-	@ NOTE: if uart1_printf starts misbehaving this could be the cause
+_kprintf_fmtchr:
+	@ NOTE: if kprintf starts misbehaving this could be the cause
 	@ NOTE: since i assumed that chars are padded to 4 bytes, but i cant find
 	@ NOTE: it formally stated anywhere (also this seems to work reliably)
 	ldrb r0,[r7],#4  @ Read character then increment ptr
-	bl _uart1_printf_putc
+	bl _kprintf_putc
 	b 1b
 
 @ %x
-_uart1_printf_fmthexl:
-	ldr r3,=_uart1_printf_hexlower
+_kprintf_fmthexl:
+	ldr r3,=_kprintf_hexlower
 	b 50f
 @ %X, %p
-_uart1_printf_fmthexu:
-_uart1_printf_fmtptr:  @ TODO: make pointers have leading zeroes
-	ldr r3,=_uart1_printf_hexupper
+_kprintf_fmthexu:
+_kprintf_fmtptr:  @ TODO: make pointers have leading zeroes
+	ldr r3,=_kprintf_hexupper
 
 50:
+	ldr r0,[fp,#4]  @ r0 = length
 	ldr r1,[r7],#4  @ Load word and increment ptr
 	mov r2,#28  @ r2 = shift amount
 
 	cmp r1,#0  @ skip loop if 0
 	bne 51f
 	mov r0,#'0'
-	bl _uart1_printf_putc
+	bl _kprintf_putc
 	b 1b
 
 51:
@@ -279,7 +302,7 @@ _uart1_printf_fmtptr:  @ TODO: make pointers have leading zeroes
 	beq 52f  @ dont print anything if this is a leading zero
 	and r0,r0,#0xF  @ clear high bits
 	ldrb r0,[r3,r0]  @ load offset from array of hex chars (r0 = [r3+r0])
-	bl _uart1_printf_putc
+	bl _kprintf_putc
 
 52:
 	subs r2,r2,#4  @ decrease shift amount and update flags
@@ -288,14 +311,14 @@ _uart1_printf_fmtptr:  @ TODO: make pointers have leading zeroes
 	b 1b
 
 @ %o
-_uart1_printf_fmtoct:
+_kprintf_fmtoct:
 	ldr r1,[r7],#4  @ Load word and increment ptr
 	mov r2,#30  @ r2 = shift amount (highest octal digit is truncated to 2 bits in an multiple of 8 word)
 
 	cmp r1,#0  @ skip loop if 0
 	bne 50f
 	mov r0,#'0'
-	bl _uart1_printf_putc
+	bl _kprintf_putc
 	b 1b
 
 50:
@@ -304,7 +327,7 @@ _uart1_printf_fmtoct:
 	beq 51f  @ dont print anything if this is a leading zero
 	and r0,r0,#7  @ clear high bits
 	orr r0,r0,#0x30  @ convert to ascii
-	bl _uart1_printf_putc
+	bl _kprintf_putc
 
 51:
 	subs r2,r2,#3  @ decrease shift amount and update flags
@@ -312,7 +335,7 @@ _uart1_printf_fmtoct:
 	b 1b
 
 @ %b
-_uart1_printf_fmtbin:
+_kprintf_fmtbin:
 	ldr r1,[r7],#4  @ Load word and increment ptr
 	mov r2,#31
 
@@ -322,7 +345,7 @@ _uart1_printf_fmtbin:
 	beq 51f  @ dont print anything if this is a leading zero
 	and r0,r0,#1  @ clear high bits
 	orr r0,r0,#0x30  @ convert to ascii
-	bl _uart1_printf_putc
+	bl _kprintf_putc
 
 51:
 	subs r2,r2,#1  @ decrease shift amount and update flags
@@ -330,18 +353,18 @@ _uart1_printf_fmtbin:
 	b 1b
 
 @ %n
-_uart1_printf_fmtsto:
+_kprintf_fmtsto:
 	ldr r0,[r7],#4  @ load addr and increment ptr
 	str r6,[r0]
 	b 1b
 
 @ %d, %i
-_uart1_printf_fmtdec:
+_kprintf_fmtdec:
 	@ set zero flag
 	movs r0,#0
 	b 48f
 @ %u
-_uart1_printf_fmtudec:
+_kprintf_fmtudec:
 	@ clear zero flag
 	movs r0,#1
 48:
@@ -353,6 +376,7 @@ _uart1_printf_fmtudec:
 	@ if zero flag is set then check sign
 	bne 49f  @ skip if zero flag clear
 
+	@ check if sign bit set, adjusting for length
 	@ if (1 << (length * 8) == 1) 
 	ldr r4,[fp,#4]
 	lsl r4,r4,#3
@@ -362,7 +386,7 @@ _uart1_printf_fmtudec:
 	tst r1,r4
 	beq 49f
 		mov r0,#'-'
-		bl _uart1_printf_putc
+		bl _kprintf_putc
 
 		@ negate
 		mvn r1,r1
@@ -371,7 +395,7 @@ _uart1_printf_fmtudec:
 		sub r4,r4,#1
 		and r1,r1,r4
 49:
-	mov r0,#32
+	mov r0,#32  @ r0 = number of shifts left
 50:
 	@ check each BCD nybble to see if its >= 5
 	mov r4,#0  @ 2^32 is 10 digits in decimal, so 10 nybbles is the maximum
@@ -443,7 +467,7 @@ _uart1_printf_fmtudec:
 		orrne r0,r5,#0x30  @ convert to ascii
 		
 56:
-	blne _uart1_printf_putc
+	blne _kprintf_putc
 
 	@ loop while r4 > 0
 	cmp r4,#0
@@ -452,13 +476,13 @@ _uart1_printf_fmtudec:
 	b 54b
 
 @ Prints individual character for uart1_printf
-_uart1_printf_putc:
+_kprintf_putc:
 	push {lr}
 	bl uart1_putc  @ print character
 	add r8,r8,#1  @ increment chars printed counter
 	pop {lr}
 	bx lr
 
-_uart1_printf_hexupper: .ascii "0123456789ABCDEF"
-_uart1_printf_hexlower: .ascii "0123456789abcdef"
+_kprintf_hexupper: .ascii "0123456789ABCDEF"
+_kprintf_hexlower: .ascii "0123456789abcdef"
 

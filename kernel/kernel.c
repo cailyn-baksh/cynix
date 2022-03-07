@@ -33,7 +33,7 @@ uint32_t kernel_main(uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3) {
 	//panic(5);
 
 	kprintf("Booting %s v%s\r\n", OSNAME, osversion);
-	kprintf("%s", (((char *)0x13001)));
+	kprintf("Board %p %p\r\n", board, NULL);
 
 	handle_kernel_params(r2);
 

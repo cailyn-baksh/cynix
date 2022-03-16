@@ -149,7 +149,7 @@ uart1_putc:
 	pop {r4-r6, pc}
 
 @ void kprintf(const char *format, ...);
-kprintf:
+___kprintf:
 	@ r0 is format string
 	@ r1-r3 are format arguments
 	@ any other format arguments are pushed onto the stack in reverse order
@@ -157,11 +157,19 @@ kprintf:
 	mov r1,sp  @ remember where varargs begins on the stack
 	push {r4-r8, fp, lr}  @ Save registers
 
-	mov fp,sp  @ move frame pointer to start of locals
 	sub sp,sp,#4  @ Move stack pointer to end of locals
+	mov fp,sp  @ move frame pointer to bottom of stack
 
 	@ Declare locals
-	@   [fp + 4] = length
+	#define length fp
+
+	#define FMTLEN_h	1
+	#define FMTLEN_hh	2
+	#define FMTLEN_l	3
+	#define FMTLEN_ll	4
+	#define FMTLEN_z	5
+	#define FMTLEN_j	6
+	#define FMTLEN_t	7
 
 	@ r0-r5 are scratch registers  (i couldve kept it to r0-r3 if it weren't for decimal)
 	mov r6,r0  @ r6 = pointer to format string
@@ -169,9 +177,9 @@ kprintf:
 	mov r8,#0  @ r8 = number of chars printed
 
 1:
-	@ length = sizeof(int)
-	mov r2,#__SIZEOF_INT__
-	str r2,[fp,#4]
+	@ length = 0
+	mov r2,#0
+	str r2,[length]
 
 	ldrb r0,[r6],#1  @ read byte and increment ptr
 
@@ -203,7 +211,7 @@ kprintf:
 		@ else only half word
 			movne r1,#__SIZEOF_SHORT__
 			sub r6,r6,#1  @ unread last char
-		str r1,[fp,#4]  @ length = r1
+		str r1,[length]
 		beq 2b  @ move to next char
 3:
 	cmp r0,#'l'  @ long
@@ -217,7 +225,7 @@ kprintf:
 		@ else only long
 			movne r1,#__SIZEOF_LONG__
 			sub r6,r6,#1  @ unread last char
-		str r1,[fp,#4]  @ length = r1
+		str r1,[length]
 		beq 2b
 4:
 
@@ -482,6 +490,8 @@ _kprintf_putc:
 	add r8,r8,#1  @ increment chars printed counter
 	pop {lr}
 	bx lr
+
+#undef length
 
 _kprintf_hexupper: .ascii "0123456789ABCDEF"
 _kprintf_hexlower: .ascii "0123456789abcdef"

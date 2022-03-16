@@ -21,23 +21,45 @@
 #else
 /* C */
 
-void *init_uart1(void);
-void uart1_putc(char);
+void *init_uart1();
+void uart1_putc(char c);
 
 /*
  * Kernel debug printf. Prints to UART1
  *
  * format strings consist of the following syntax
- *  %[length]type
+ *  %[flags][width][length]type
+ *
+ * Flags field
+ *  Value	Description
+ *  -		Left Align
+ *  +		Prepend plus for positive signed numeric types
+ *  <space>	Prepend space for positive signed numeric types
+ *  0		When width is specified, prepend zeroes for numeric types
+ *  #		Use alternate form.
+ *			  For type b, prepends `0b`
+ *			  For type o, prepends `0o`
+ *			  For type x and X, prepends `0x`
+ *
+ * Width Field
+ *  Minimum number of characters to output. Does not truncate longer values.
+ *  May either be a fixed number, or an `*`, meaning that the value is passed
+ *  as an argument.
  *
  * Length field
  *  Value	Description
  *  hh		int-sized argument promoted from char
  *  h		int-sized argument promoted from short
+ *  l		long-sized argument
+ *  ll		long long sized argument
+ *  q
+ *  z		size_t sized argument
+ *  j		intmax_t sized argument
+ *  t		ptrdiff_t sized argument
  *
  * Type field
  *  Value	Description
- *  %		Literal '%'
+ *  %		Literal '%'. Must be the only character in the specifier.
  *  d		Signed integer
  *  i
  *  u		Unsigned integer

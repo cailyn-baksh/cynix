@@ -1,6 +1,6 @@
-#include "common.h"
-#include "board.h"
-#include "uart.h"
+#include "kernel/common.h"
+#include "kernel/board.h"
+#include "kernel/uart.h"
 
 .global init_uart1
 .global uart1_putc

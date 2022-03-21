@@ -1,13 +1,13 @@
 #include <stdint.h>
 #include <limits.h>
 
-#include "common.h"
-#include "board.h"
-#include "kparams.h"
-#include "uart.h"
+#include "kernel/common.h"
+#include "kernel/board.h"
+#include "kernel/kparams.h"
+#include "kernel/uart.h"
 
 #define NOEXTERN
-#include "errno.h"
+#include "kernel/kerrno.h"
 #undef NOEXTERN
 
 uint32_t errno = ENONE;
@@ -37,6 +37,8 @@ uint32_t kernel_main(uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3) {
 	kprintf("string: '%-*s'\r\n", 10, "abc");
 	kprintf("hexl: %-#8x\r\n", 0xacab);
 	kprintf("hexu: %#08X\r\n", 0);
+	kprintf("oct: %o\r\n", 8);
+	kprintf("bin: %#08b\r\n", 10);
 
 	//kprintf("Booting %s v%s\r\n", OSNAME, osversion);
 	//kprintf("Board %p %p\r\n", board, NULL);

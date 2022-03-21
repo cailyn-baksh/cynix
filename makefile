@@ -19,7 +19,7 @@ bin/kernel/%.c.o: kernel/%.c
 
 bin/kernel/version.c.o:: version
 	./buildnum.sh 0
-	sleep 0.25
+	sleep 0.2
 
 bin/kernel/version.c.o:: kernel/version.c FORCE
 	$(TOOLCHAIN)-gcc $(CFLAGS) -DOSVERSION=$(VERSION)-$(BUILDNUM) -I kernel -c -o $@ $<

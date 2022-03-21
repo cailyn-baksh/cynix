@@ -2,8 +2,8 @@
  * Kernel error reporting.
  */
 
-#ifndef _ERRNO_H_
-#define _ERRNO_H_
+#ifndef _KERRNO_H_
+#define _KERRNO_H_
 
 #define ENONE	0x0  // No error
 
@@ -21,5 +21,5 @@
 extern uint32_t errno;
 #endif  // NOEXTERN
 #endif  // __ASSEMBLER__
-#endif  // _ERRNO_H_
+#endif  // _KERRNO_H_
 

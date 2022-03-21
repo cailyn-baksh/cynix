@@ -3,9 +3,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kstring.h"
-#include "uart.h"
+#include "kernel/kstring.h"
+#include "kernel/uart.h"
 
+extern void doubledabble_shiftregister(void *reg, uint32_t size);
+
+/*
+ * Gets an integer argument from varargs. Helper function for kprintf.
+ *
+ * value	A buffer to place the value in
+ * args		The varargs object to read from
+ * length	The printf length specifier.
+ * Returns the size of the type read
+ */
 static size_t getIntArg(intmax_t *value, va_list *args, char length) {
 	size_t size;
 
@@ -47,7 +57,7 @@ static size_t getIntArg(intmax_t *value, va_list *args, char length) {
 }
 
 /*
- * Print a string with padding applied
+ * Print a string with padding applied. Helper function for kprintf.
  *
  * str		The string to print. Does not need to be null terminated
  * width	The width of the string to print
@@ -59,7 +69,7 @@ static size_t getIntArg(intmax_t *value, va_list *args, char length) {
  *
  * Returns number of chars printed
  */
-size_t printWidth(const char *str, int length, const char *prefix, int width, bool left, bool zero) {
+static size_t printWidth(const char *str, int length, const char *prefix, int width, bool left, bool zero) {
 	const char padding = zero ? '0' : ' ';
 	size_t charsPrinted = 0;
 
@@ -109,6 +119,27 @@ size_t printWidth(const char *str, int length, const char *prefix, int width, bo
 	}
 
 	return charsPrinted;
+}
+
+/*
+ * Calculate the size in bytes of the required buffer for double dabble
+ * 
+ * intSize	The size in bytes of the integer the algorithm will be performed on
+ * Returns the minimum number of bytes required.
+ */
+static size_t doubleDabbleBufferSize(size_t intSize)  {
+	if (intSize == 0) return 0;
+
+	intSize *= 8;  // Convert to bits
+
+	size_t digits = 1 + ((intSize - 1) / 3);  // ceil(intSize / 3)
+	size_t nBits = intSize + digits * 4;
+
+	return 1 + ((nBits - 1) / 8);  // ceil(nBits / 8);
+}
+
+static void doubleDabble() {
+
 }
 
 void kprintf(const char *format, ...) {
@@ -202,10 +233,25 @@ void kprintf(const char *format, ...) {
 
 			// Type field
 			if (*format == 'd' || *format == 'i') {
+				// To format signed integers, check if the sign bit is set, and
+				// if it is then clear it and change value to its 2s complement
+				// then do unsigned double dabble and manually add the sign
+				uintmax_t value;
+				size_t size = getIntArg(&value, &args, length);
+
+				const uintmax_t MSB = 1 << (size * 8 - 1);
+				bool isNegative = value & MSB;  // check if MSB is set
+
+				if (isNegative) {
+					value ^= MSB;  // turn off msb
+					value = (~value) + 1;  // convert to positive unsigned
+				}
+
 
 			} else if (*format == 'u') {
-
-			} else if (*format == 'x' || *format == 'X') {
+				uintmax_t value;
+				size_t size = getIntArg(&value, &args, length);
+			} else if (*format == 'x' || *format == 'X' || *format == 'p') {
 				char *hexChars;
 				if (*format == 'x') {
 					hexChars = "0123456789abcdef";
@@ -215,10 +261,20 @@ void kprintf(const char *format, ...) {
 
 				// Get value and size
 				uintmax_t value;
-				size_t size = getIntArg(&value, &args, length);
-				char buffer[size * 2];
-				size_t index = 0;
+				size_t size;
 
+				if (*format == 'p') {
+					// Formatting pointer
+					value = va_arg(args, void *);
+					size = sizeof(void *);
+				} else {
+					// formatting integer
+					size = getIntArg(&value, &args, length);
+				}
+
+				char buffer[size * 2];
+
+				size_t index = 0;
 				size_t shift = size * 8;
 				do {
 					shift -= 4;  // Move shift to 'point' to the bottom of the current nybble
@@ -231,9 +287,36 @@ void kprintf(const char *format, ...) {
 
 				charsPrinted += printWidth(buffer, index, "0x", width, leftAlign, prependZero);
 			} else if (*format == 'o') {
+				// Get value and size
+				uintmax_t value;
+				size_t size = getIntArg(&value, &args, length);
+				char buffer[size * 3];  // byte can hold up to 3 octal digits
 
+				size_t index = 0;
+				size_t shift = size * 8;
+				do {
+					shift -= 3;
+					uintmax_t temp = value >> shift;
+					// check if this is a leading zero
+					if (temp != 0 || shift == 0) {
+						buffer[index++] = (temp & 0xF) - '0';  // Convert to ASCII
+					}
+				} while (shift != 0);
+
+				charsPrinted += printWidth(buffer, index, "0o", width, leftAlign, prependZero);
 			} else if (*format == 'b') {
+				uintmax_t value;
+				size_t size = getIntArg(&value, &args, length) * 8;
 
+				char buffer[size];
+				size_t index = 0;
+				uintmax_t mask = 1;
+				while (mask != 0) {
+					buffer[index++] = (value & mask) ? '1' : '0';
+					mask <<= 1;
+				}
+
+				charsPrinted += printWidth(buffer, index, "0b", width, leftAlign, prependZero);
 			} else if (*format == 's') {
 				// Print string
 				char *s = va_arg(args, char *);
@@ -242,8 +325,6 @@ void kprintf(const char *format, ...) {
 				// Print character
 				char c = (char)va_arg(args, int);
 				charsPrinted += printWidth(&c, 1, width, NULL, leftAlign, false);
-			} else if (*format == 'p') {
-
 			} else if (*format == 'n') {
 				// Store number of chars printed in a pointer
 				unsigned int *ptr = va_arg(args, unsigned int *);
@@ -259,5 +340,3 @@ void kprintf(const char *format, ...) {
 
 	return;
 }
-
-

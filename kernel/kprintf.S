@@ -1,10 +1,6 @@
 @ Helper functions for kprintf
 
-.global kprintf_doubledabble
-
-@ void kprintf_doubledabble(void *bcd, )
-kprintf_doubledabble:
-	
+.global doubledabble_shiftregister
 
 @ Shifts a multibyte register for double dabble.
 @ The register should use big-endian byte ordering

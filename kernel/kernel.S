@@ -8,7 +8,7 @@
 .section ".rodata"
 
 CRLF: .byte 0xD,0xA,0x0
-kPanicStr: .asciz "Kernel panic. Code %p%s"
+kPanicStr: .asciz "Kernel panic. Code %x from %#p\n"
 
 @@@@@    .data    @@@@@
 .section ".data"
@@ -43,7 +43,7 @@ _start:
 	@ loop if below __bss_end
 	cmp r4,r9
 	blo 1b
-	
+
 	@ store board version in r3
 	mrc p15,0,r3,c0,c0,0
 
@@ -60,14 +60,14 @@ halt:
 
 @ Prints error information to uart1 and halts kernel
 @ Takes an error code in r0
-@ When panic is called r10 will contain the error code,
-@ even if panic fails later.
+@ Even if panic fails error code will be stored at address 0xACAB
 panic:
-	mov r10,r0  @ Move r0 into r10 in case printing fails
+	ldr r1,=0xACAB
+	str r0,[r1]
 
 	ldr r0,=kPanicStr
-	ldr r1,=board
-	ldr r2,=CRLF
+	ldr r1,r10  @ code
+	ldr r2,lr  @ Source address
 	bl kprintf
 
 	b halt

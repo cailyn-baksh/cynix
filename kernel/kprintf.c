@@ -331,6 +331,10 @@ void kprintf(const char *format, ...) {
 				*ptr = charsPrinted;
 			}
 		} else {
+			if (*format == '\n') {
+				uart1_putc('\r');
+				++charsPrinted;
+			}
 			uart1_putc(*format);
 			++charsPrinted;
 		}

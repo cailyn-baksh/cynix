@@ -53,32 +53,6 @@
 #define GPPUDCLK0_OFFSET			0x200098
 #define GPPUDCLK1_OFFSET			0x20009C
 
-#define MBOX_READ_OFFSET			0x0000B880
-#define MBOX_POLL_OFFSET			0x0000B890
-#define MBOX_SENDER_OFFSET			0x0000B894
-#define MBOX_STATUS_OFFSET			0x0000B898
-#define MBOX_CONFIG_OFFSET			0x0000B89C
-#define MBOX_WRITE_OFFSET			0x0000B8A0
-
-#define MBOX_RESPONSE		0x80000000
-#define MBOX_FULL			0x80000000
-#define MBOX_EMPTY			0x40000000
-
-#define MBOX_REQUEST	0
-
-#define MBOX_CH_POWER	0
-#define MBOX_CH_FB 		1
-#define MBOX_CH_VUART	2
-#define MBOX_CH_VCHIQ	3
-#define MBOX_CH_LEDS	4
-#define MBOX_CH_BTNS	5
-#define MBOX_CH_TOUCH	6
-#define MBOX_CH_COUNT	7
-#define MBOX_CH_PROP	8
-
-#define MBOX_TAG_GETSERIAL	0x10004
-#define MBOX_TAG_LAST		0
-
 #ifdef __ASSEMBLER__
 /* asm-only */
 
@@ -104,15 +78,34 @@
 typedef struct __attribute__((__packed__)) {
 	uint8_t id;
 	char name[8];
-	int : 8;  // null terminator for name
+	int : 8;  // forced null terminator for name
 	void *mmio_base;
 } HWData;
 
 #ifndef NOEXTERN
 extern const HWData boards[4];
 
-extern HWData const *board;
+extern volatile HWData const *board;
 #endif  // NOEXTERN
+
+/*
+ * Read a type from an MMIO offset
+ *
+ * type		The type to read
+ * offset	The offset to read from
+ * Returns the value read
+ */
+#define MMIO_READ(type, offset) (*(type *)(board->mmio_base + offset))
+
+/*
+ * Write a value of a given type to an MMIO offset
+ *
+ * type		The type being written
+ * offset	The offset to write to
+ * value	The value to write
+ * Returns the value of the offset written to after the write operation.
+ */
+#define MMIO_WRITE(type, offset, value) (*(type *)(board->mmio_base + offset) = value)
 
 #endif  // __ASSEMBLER__
 #endif  // _BOARD_H_

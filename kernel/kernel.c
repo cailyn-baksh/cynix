@@ -1,9 +1,9 @@
-#include <stdint.h>
 #include <limits.h>
+#include <stdint.h>
 
-#include "kernel/common.h"
 #include "kernel/board.h"
-#include "kernel/kparams.h"
+#include "kernel/common.h"
+#include "kernel/devicetree.h"
 #include "kernel/uart.h"
 
 #define NOEXTERN
@@ -30,20 +30,10 @@ uint32_t kernel_main(uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3) {
 
 	init_uart1();
 
-	//panic(5);
+	kprintf("Booting %s v%s\n", OSNAME, osversion);
+	kprintf("Board %s\n", board->name, NULL);
 
-	kprintf("Hello World!\r\n");
-	kprintf("char: '%-15c'\r\n", 'h');
-	kprintf("string: '%-*s'\r\n", 10, "abc");
-	kprintf("hexl: %-#8x\r\n", 0xacab);
-	kprintf("hexu: %#08X\r\n", 0);
-	kprintf("oct: %o\r\n", 8);
-	kprintf("bin: %#08b\r\n", 10);
-
-	//kprintf("Booting %s v%s\r\n", OSNAME, osversion);
-	//kprintf("Board %p %p\r\n", board, NULL);
-
-	handle_kernel_params(r2);
+	handle_kernel_params(r2);  // TODO: implement atags/device tree
 
 	return 0;
 }

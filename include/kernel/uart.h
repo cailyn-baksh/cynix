@@ -25,7 +25,8 @@ void *init_uart1();
 void uart1_putc(char c);
 
 /*
- * Kernel debug printf. Prints to UART1
+ * Kernel debug printf. Prints to UART1. Newlines are translated into
+ * CRLF.
  *
  * format strings consist of the following syntax
  *  %[flags][width][length]type

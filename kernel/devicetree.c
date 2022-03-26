@@ -1,19 +1,22 @@
-#include "common.h"
-#include "devicetree.h"
-#include "uart.h"
+#include "kernel/common.h"
+#include "kernel/devicetree.h"
+#include "kernel/uart.h"
 
 /* macros to swap endianness of integers */
 #define REV32(i) asm ( "rev %0,%1" : "+r" (i) )
 #define REV64(i) asm (\
-		"ldrd r0,r1,[%0]\n"\
+		"ldrd r0,r1,%0\n"\
 		"rev r0,r0\n"\
 		"rev r1,r1\n"\
-		"strd r1,r0,[%1]"\
+		"mov r2,r1\n"\
+		"mov r1,r0\n"\
+		"mov r0,r2\n"\
+		"strd r0,r1,%1"\
 		: "+m" (i)\
-		: : "r0", "r1"\
+		: : "r0", "r1", "r2"\
 	)
 
-void read_devicetree(void *devtree_ptr);
+void read_devicetree(void *const devtree_ptr);
 
 void handle_kernel_params(uintptr_t r2) {
 	if (r2 == 0 || *(uint32_t *)(r2+4) == 0x54410001) {
@@ -39,7 +42,7 @@ uint32_t fdt_parseStructNode(void *ptr) {
 	uint32_t token;
 	char *nodeUnitName = (char *)ptr;  // NOT BIG ENDIAN
 
-	while (*ptr && ptr % 4 != 0) ++ptr;  // find end of string
+	while (*((uint8_t *)ptr) && ((ptrdiff_t)ptr) % 4 != 0) ++ptr;  // find end of string
 
 	for (;;) {
 		token = *(uint32_t *)ptr;
@@ -65,7 +68,7 @@ uint32_t fdt_parseStructNode(void *ptr) {
 			// align pointer
 			// checks if pointer is divisible by 4 (ptr & 7 == 0b100), and
 			// if it isnt then add the difference (4 - ptr & 0b11)
-			if (ptr & 7 != 4) ptr += 4 - (ptr & 3);
+			if (((ptrdiff_t)ptr & 7) != 4) ptr += 4 - ((ptrdiff_t)ptr & 3);
 
 			// we have the values, now what?
 		} else if (token == FDT_NOP) {
@@ -76,7 +79,7 @@ uint32_t fdt_parseStructNode(void *ptr) {
 	}
 }
 
-void read_devicetree(const void *devtree_ptr) {
+void read_devicetree(void *const devtree_ptr) {
 	void *ptr = devtree_ptr;  // Pointer moved through device tree
 
 	/* Header */

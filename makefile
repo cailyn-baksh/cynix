@@ -5,8 +5,8 @@ SRCS = $(filter-out %.swp %.inc %.h,$(wildcard kernel/*))
 OBJS = $(addsuffix .o,$(patsubst %,bin/%,$(SRCS)))
 INCLUDES = include/
 TOOLCHAIN = arm-none-eabi
-CFLAGS = -march=armv6k -mabi=aapcs -ffreestanding -nostdlib -nostartfiles -O2 -Wall
-CSTD = c17
+CFLAGS = -march=armv6k -mabi=aapcs -ffreestanding -nostdlib -nostartfiles -O2 -Wall $(addprefix -I,$(INCLUDES))
+CSTD = gnu17
 
 build: $(OBJS)
 	rm -f bin/$(NAME)-$(VERSION)-*.elf
@@ -15,17 +15,17 @@ build: $(OBJS)
 	./buildnum.sh update
 
 bin/kernel/%.c.o: kernel/%.c
-	$(TOOLCHAIN)-gcc $(CFLAGS) -std=$(CSTD) -I kernel -c -o $@ $<
+	$(TOOLCHAIN)-gcc $(CFLAGS) -std=$(CSTD) -c -o $@ $<
 
 bin/kernel/version.c.o:: version
 	./buildnum.sh 0
 	sleep 0.2
 
 bin/kernel/version.c.o:: kernel/version.c FORCE
-	$(TOOLCHAIN)-gcc $(CFLAGS) -DOSVERSION=$(VERSION)-$(BUILDNUM) -I kernel -c -o $@ $<
+	$(TOOLCHAIN)-gcc $(CFLAGS) -DOSVERSION=$(VERSION)-$(BUILDNUM) -c -o $@ $<
 
 bin/kernel/%.S.o: kernel/%.S
-	$(TOOLCHAIN)-gcc $(CFLAGS) -I kernel -c -o $@ $<
+	$(TOOLCHAIN)-gcc $(CFLAGS) -c -o $@ $<
 
 setup:
 	mkdir -p bin

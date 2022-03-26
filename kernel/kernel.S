@@ -1,5 +1,5 @@
-#include "common.h"
-#include "board.h"
+#include "kernel/common.h"
+#include "kernel/board.h"
 
 .global _start
 .global panic
@@ -65,9 +65,9 @@ panic:
 	ldr r1,=0xACAB
 	str r0,[r1]
 
-	ldr r0,=kPanicStr
-	ldr r1,r10  @ code
-	ldr r2,lr  @ Source address
+	mov r1,r0  @ code (2nd arg)
+	ldr r0,=kPanicStr  @ fmt (1st arg)
+	mov r2,lr  @ Source address
 	bl kprintf
 
 	b halt

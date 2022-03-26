@@ -4,7 +4,7 @@
 #include "kernel/board.h"
 #include "kernel/mailbox.h"
 
-uint32_t mbox_read(uint32_t channel) {
+uint32_t mbox_read(uint8_t channel) {
 	for (;;) {
 		while ((MMIO_READ(uint32_t, MAIL0_STATUS) & MAIL_EMPTY) != 0);  // Wait for data
 

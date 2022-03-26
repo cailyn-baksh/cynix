@@ -1,7 +1,7 @@
 #!/bin/bash
 # updates build number by one when called
 
-build=74
+build=75
 
 # write to stdout then increment
 if [[ $# == 1 ]]; then

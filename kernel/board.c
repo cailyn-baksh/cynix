@@ -1,5 +1,5 @@
 #define NOEXTERN
-#include "board.h"
+#include "kernel/board.h"
 #undef NOEXTERN
 
 const HWData boards[4] = {

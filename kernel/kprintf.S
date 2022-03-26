@@ -21,7 +21,9 @@ doubledabble_shiftregister:
 		revge r4,r4
 		bge 1f
 	cmp r6,#2		@ 2 or more bytes after readptr
-		ldrhge r4,[r0],#2
+		@ TODO: FIX THIS!!
+		@ TODO: ldrhge is not valid
+		@ldrhge r4,[r0],#2
 		rev16ge r4,r4
 		bge 1f
 	@ else
@@ -41,7 +43,8 @@ doubledabble_shiftregister:
 			mov r7,#0
 			bge 10f
 		cmp r6,#2		@ 2 or more bytes after readptr
-			ldrhge r5,[r0],#2
+			@ TODO: FIX!!
+			@ldrhge r5,[r0],#2
 			rev16ge r5,r5  @ swap endianness
 			movge r7,#16
 			lslge r5,r5,r7  @ move bits so carry flag will be set properly
@@ -50,7 +53,7 @@ doubledabble_shiftregister:
 			ldrb r5,[r0],#1
 			mov r7,#24
 			lsl r5,r5,r7  @ move bits so carry flag will be set properly
-	10:
+10:
 
 		lsl r5,r5,#1
 		orrcs r4,r4,#1  @ carry into previous word
@@ -63,11 +66,12 @@ doubledabble_shiftregister:
 			bge 11f
 		cmp r6,#2		@ 2 or more bytes after readptr
 			rev16ge r4,r4  @ swap endianness
-			strhge r4,[r3],#2
+			@ TODO: FIX!!
+			@strhge r4,[r3],#2
 			bge 11f
 		@ else
-			strbge r4,[r3],#1
-	11:
+			strb r4,[r3],#1
+11:
 
 		@ move current word to previous word position
 		@ r4 = r5 >> r7
@@ -80,10 +84,11 @@ doubledabble_shiftregister:
 		cmp r6,#4		@ 4 or more bytes after writeptr
 			revge r4,r4  @ swap endianness
 			strge r4,[r3],#4
-			bge 11f
+			@bge 11f
 		cmp r6,#2		@ 2 or more bytes after readptr
 			rev16ge r4,r4  @ swap endianness
-			strhge r4,[r3],#2
-			bge 11f
+			@ TODO: FIX!!
+			@strhge r4,[r3],#2
+			@bge 11f
 		@ else
-			strbge r4,[r3],#1
+			strb r4,[r3],#1

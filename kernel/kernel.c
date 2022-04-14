@@ -15,6 +15,7 @@ uint32_t errno = ENONE;
 uint32_t kernel_main(uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3) {
 	switch ((r3 >> 4) & 0xFFF) {
 		case 0xB76:
+		default:
 			board = &boards[0];
 			break;
 		case 0xC07:
@@ -28,10 +29,10 @@ uint32_t kernel_main(uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3) {
 			break;
 	}
 
-	init_uart1();
+	mini_uart_init();
 
 	kprintf("Booting %s v%s\n", OSNAME, osversion);
-	kprintf("Board %s\n", board->name, NULL);
+	kprintf("Board %s detected\n", board->name, NULL);
 
 	handle_kernel_params(r2);  // TODO: implement atags/device tree
 

@@ -1,5 +1,5 @@
-#include "kernel/common.h"
-#include "kernel/board.h"
+#include "common.h"
+#include "board.h"
 
 .global _start
 .global panic
@@ -34,15 +34,15 @@ _start:
 	mov r6,#0
 	mov r7,#0
 	mov r8,#0
-	b 2f
 
-1:
+1:  @ while r4 < __bss_end
+	cmp r4,r9
+	blo 2f
+
 	@ write r5-r8 starting at [r4]
 	stmia r4!,{r5-r8}
+	b 1b
 2:
-	@ loop if below __bss_end
-	cmp r4,r9
-	blo 1b
 
 	@ store board version in r3
 	mrc p15,0,r3,c0,c0,0
@@ -62,13 +62,14 @@ halt:
 @ Takes an error code in r0
 @ Even if panic fails error code will be stored at address 0xACAB
 panic:
-	ldr r1,=0xACAB
+	ldr r1,=__panic_code
 	str r0,[r1]
 
-	mov r1,r0  @ code (2nd arg)
-	ldr r0,=kPanicStr  @ fmt (1st arg)
-	mov r2,lr  @ Source address
-	bl kprintf
+	ldr r0,UART1  @ print to mini uart
+	ldr r1,=kPanicStr
+	ldr r2,r10  @ code
+	ldr r3,lr  @ Source address
+	bl uart_kprintf
 
 	b halt
 

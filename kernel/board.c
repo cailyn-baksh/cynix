@@ -21,7 +21,7 @@ const HWData boards[4] = {
 	{
 		.id = BOARD_RPI4_ID,
 		.name = "Raspi4",
-		.mmio_base = (void *)0x3F000000
+		.mmio_base = (void *)0xFE000000
 	}
 };
 

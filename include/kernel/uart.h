@@ -1,19 +1,7 @@
 #ifndef _UART_H_
 #define _UART_H_
 
-#define AUX_ENABLE_OFFSET			0x00215004
-#define AUX_MU_IO_OFFSET			0x00215040
-#define AUX_MU_IIR_OFFSET			0x00215044
-#define AUX_MU_IER_OFFSET			0x00215048
-#define AUX_MU_LCR_OFFSET			0x0021504C
-#define AUX_MU_MCR_OFFSET			0x00215050
-#define AUX_MU_LSR_OFFSET			0x00215054
-#define AUX_MU_MSR_OFFSET			0x00215058
-
-#define AUX_MU_SCRATCH_OFFSET		0x0021505C
-#define AUX_MU_CNTL_OFFSET			0x00215060
-#define AUX_MU_STAT_OFFSET			0x00215064
-#define AUX_MU_BAUD_OFFSET			0x00215068
+#include <stdint.h>
 
 #ifdef __ASSEMBLER__
 /* ASM */
@@ -21,12 +9,17 @@
 #else
 /* C */
 
-void *init_uart1();
-void uart1_putc(char c);
+#ifdef __cplusplus
+extern "C" {
+#endif
+void pl011_uart_putc(void *base, char c);
 
 /*
- * Kernel debug printf. Prints to UART1. Newlines are translated into
- * CRLF.
+ * Kernel debug printf. This can be configured to print to any output device
+ * by passing an underlying putc function. Newlines are translated into CRLF.
+ *
+ * putc		The underlying function called to output characters.
+ * format	The format specifier to print
  *
  * format strings consist of the following syntax
  *  %[flags][width][length]type
@@ -73,9 +66,32 @@ void uart1_putc(char c);
  *  p		Pointer
  *  n		Write nothing, but store number of characters printed so far to int ptr
  */
-void kprintf(const char *format, ...) __attribute__((format(printf, 1, 2)));
+void kprintf(void *(*putc)(char), const char *format, ...) __attribute__((format(printf, 1, 2)));
+
+/*
+ * Like kprintf, but takes a va_list instead of variadic arguments. See kprintf
+ */
+void kvprintf(void *(*underlying_putc)(char), const char *format, va_list args) __attribute__((format(printf, 1, 2)));
+
+/*
+ * kprintf to UART1 (mini UART). This is equivalent to (but faster than) calling
+ * uart_kprintf on UART1
+ */
+#define mini_kprintf(fmt, ...) kprintf(uart1_putc, fmt, __VA_ARGS__)
+
+/*
+ * kprintf to a specific UART
+ *
+ * uart		The uart to print to
+ * fmt		The format string to use
+ * Returns non-zero if the UART is invalid.
+ */
+int uart_kprintf(int uart, const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // __ASSEMBLER__
 
 #endif  // _UART_H_
-

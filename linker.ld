@@ -2,6 +2,9 @@ ENTRY(_start)
 
 SECTIONS
 {
+	. = 0x1312;
+	__panic_code = .;
+
 	. = 0x8000;
 	__start = .;
 

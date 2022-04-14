@@ -69,7 +69,7 @@ static size_t getIntArg(intmax_t *value, va_list *args, char length) {
  *
  * Returns number of chars printed
  */
-static size_t printWidth(const char *str, int length, const char *prefix, int width, bool left, bool zero) {
+static size_t printWidth(void *(*underlying_putc)(char), const char *str, int length, const char *prefix, int width, bool left, bool zero) {
 	const char padding = zero ? '0' : ' ';
 	size_t charsPrinted = 0;
 
@@ -77,44 +77,48 @@ static size_t printWidth(const char *str, int length, const char *prefix, int wi
 		if (prefix != NULL) {
 			// print prefix
 			while (*prefix) {
-				uart1_putc(*(prefix++));
+				underlying_putc(*(prefix++));
 				++charsPrinted;
 			}
 		}
 
 		// Print string first
 		for (int i=0; i < length; ++i, ++charsPrinted) {
-			uart1_putc(str[i]);
+			underlying_putc(str[i]);
 		}
 		// then print padding
 		for (int i=0; i < width - length; ++i, ++charsPrinted) {
-			uart1_putc(padding);
+			underlying_putc(padding);
 		}
 	} else {
 		if (zero && prefix != NULL) {
 			// Print prefix before zero padding
 			while (*prefix) {
-				uart1_putc(*(prefix++));
+				underlying_putc(*(prefix++));
 				++charsPrinted;
 			}
 		}
 
 		// Print padding first
 		for (int i=0; i < width - length; ++i, ++charsPrinted) {
-			uart1_putc(padding);
+			underlying_putc(padding);
 		}
 
 		if (!zero && prefix != NULL) {
 			// Print prefix between padding and string
 			while (*prefix) {
-				uart1_putc(*(prefix++));
+				underlying_putc(*(prefix++));
 				++charsPrinted;
 			}
 		}
 
 		// then print string
 		for (int i=0; i < length; ++i, ++charsPrinted) {
-			uart1_putc(str[i]);
+			if (str[i] == '\n') {
+				underlying_putc('\r');
+			}
+
+			underlying_putc(str[i]);
 		}
 	}
 
@@ -138,16 +142,17 @@ static size_t doubleDabbleBufferSize(size_t intSize)  {
 	return 1 + ((nBits - 1) / 8);  // ceil(nBits / 8);
 }
 
-static void doubleDabble() {
+void kprintf(void *(*underlying_putc)(char), const char *format, ...) {
+	va_list args;
+	va_start(args, format);
 
+	kvprintf(underlying_putc, format, args);
+
+	va_end(args);
 }
 
-void kprintf(const char *format, ...) {
-	va_list args;
+void kvprintf(void *(*underlying_putc)(char), const char *format, va_list args) {
 	size_t charsPrinted = 0;  // Count of characters printed
-
-	// Initialize varargs
-	va_start(args, format);
 
 	for (; *format; ++format) {
 		if (*format == '%') {
@@ -155,7 +160,7 @@ void kprintf(const char *format, ...) {
 			++format;
 			if (!*format || *format == '%') {
 				// Just print '%'
-				uart1_putc('%');
+				underlying_putc('%');
 				++charsPrinted;
 				break;
 			}
@@ -285,7 +290,7 @@ void kprintf(const char *format, ...) {
 					}
 				} while (shift != 0);
 
-				charsPrinted += printWidth(buffer, index, "0x", width, leftAlign, prependZero);
+				charsPrinted += printWidth(underlying_putc, buffer, index, "0x", width, leftAlign, prependZero);
 			} else if (*format == 'o') {
 				// Get value and size
 				uintmax_t value;
@@ -303,7 +308,7 @@ void kprintf(const char *format, ...) {
 					}
 				} while (shift != 0);
 
-				charsPrinted += printWidth(buffer, index, "0o", width, leftAlign, prependZero);
+				charsPrinted += printWidth(underlying_putc, buffer, index, "0o", width, leftAlign, prependZero);
 			} else if (*format == 'b') {
 				uintmax_t value;
 				size_t size = getIntArg(&value, &args, length) * 8;
@@ -316,15 +321,15 @@ void kprintf(const char *format, ...) {
 					mask <<= 1;
 				}
 
-				charsPrinted += printWidth(buffer, index, "0b", width, leftAlign, prependZero);
+				charsPrinted += printWidth(underlying_putc, buffer, index, "0b", width, leftAlign, prependZero);
 			} else if (*format == 's') {
 				// Print string
 				char *s = va_arg(args, char *);
-				charsPrinted += printWidth(s, kstrlen(s), NULL, width, leftAlign, false);
+				charsPrinted += printWidth(underlying_putc, s, kstrlen(s), NULL, width, leftAlign, false);
 			} else if (*format == 'c') {
 				// Print character
 				char c = (char)va_arg(args, int);
-				charsPrinted += printWidth(&c, 1, width, NULL, leftAlign, false);
+				charsPrinted += printWidth(underlying_putc, &c, 1, width, NULL, leftAlign, false);
 			} else if (*format == 'n') {
 				// Store number of chars printed in a pointer
 				unsigned int *ptr = va_arg(args, unsigned int *);
@@ -332,15 +337,13 @@ void kprintf(const char *format, ...) {
 			}
 		} else {
 			if (*format == '\n') {
-				uart1_putc('\r');
+				underlying_putc('\r');
 				++charsPrinted;
 			}
-			uart1_putc(*format);
+			underlying_putc(*format);
 			++charsPrinted;
 		}
 	}
-
-	va_end(args);
 
 	return;
 }
